@@ -1,0 +1,230 @@
+---
+title: "Crop Production - India"
+author: "Geetha"
+date: "September 25, 2018"
+output: html_document
+---
+#CROPS PRODUCTION IN INDIA
+
+#### The file provides details on various crops produced in India from 1998 to 2014 across different states, along with the district name.
+
+```{r, echo = TRUE, warning=FALSE,message=FALSE}
+library(dplyr)
+library(ggplot2)
+options(scipen=999)
+setwd("C:/Geetha/AV/Crop Production")
+
+file <- read.csv(file.path(getwd(), "crop_production.csv"))
+file$Crop_Year <- as.factor(file$Crop_Year)
+
+summary(file)
+file <- file[!file$Crop_Year == 1997,]#1997 doesnt have much data
+file <- file[!file$Crop_Year == 2015,]#2015 doesnt have much data
+
+```
+
+####Data is analysed to find the region where the maximum number of crops are poduced.
+
+```{r, echo = TRUE, warning=FALSE}
+ggplot(file, aes(State_Name, Production))+geom_bar(stat = "identity", fill = "blue")+
+ theme(axis.text.x = element_text(angle = 90))+xlab("State")+ylab("Production in million")
+
+```
+
+#### On the initial analysis we have found that kerala has the maximum production (variuos crops) and hence we start our analysis with Kerala.
+
+
+##Kerala
+
+
+```{r, echo = TRUE, warning=FALSE}
+State <- function(data, state){
+  file_s <- subset(data, State_Name == state)
+  season_summary <- aggregate(Production~State_Name+District_Name+Season, data = file_s, mean)
+  
+  print(ggplot(file_s, aes(Crop, Production))+geom_bar(stat = "identity", fill = "blue") + theme(axis.text.x = element_text(angle = 90)))
+  
+ print(ggplot(file_s, aes(Season,Production))+geom_bar(stat = "identity", fill = "blue")+ theme(axis.text.x = element_text(angle = 90))+xlab("Season")+ylab("Production"))
+ 
+}
+
+State(file, "Kerala" )
+```
+
+##Kerala - Analysis
+
+####From the graphs we can infer following: 
+
+####1. Coconut is the major crop                                                                       
+
+####2. Season "Whole Year" is the major season
+
+####Our Further analysis is based on these inferences. We can bifurcate our analysis on following basis
+
+####1. Crops:
+    a. Coconut - District Wise analysis
+    b. Other Crops - Find major crops and do a district wise analysis
+####2. Season
+    a. Whole Year - District Wise analysis
+    b. Other seasons - Find major seasons and do a district wise analysis
+
+##Kerala - Districtwise Analysis - Crop "Coconut"
+
+```{r, echo=TRUE, warning=FALSE}
+K_C <- subset(file, State_Name == "Kerala" & Crop == "Coconut ")
+print(ggplot(K_C, aes(reorder(District_Name,-Production), Production))+geom_bar(stat = "identity", fill = "blue") +  theme(axis.text.x = element_text(angle = 90))+  xlab("District")+ylab("Production")+
+  labs(title = "Coconut Production in Kerala")+facet_grid(~Season))
+```
+
+####Selected Top 5 Districts were the coconut production is higher and made further analysis.
+
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+K_D_C <- subset(K_C, District_Name %in% c("KOZHIKODE", "MALAPPURAM","THIRUVANANTHAPURAM", "THRISSUR", "KANNUR"))
+print(ggplot(K_D_C, aes(reorder(District_Name,-Production), Production))+geom_bar(stat = "identity", fill = "blue")+ theme(axis.text.x = element_text(angle = 90))+ xlab("District")+ylab("Production")+
+  labs(title = "Coconut Production in top 5 districst in Kerala")+facet_grid(~Crop_Year)+
+  coord_flip())
+```
+
+####From the plot, we can see the trend in the coconut production. Kozhikkode was producing more coconuts till 2008 and later the production increased in Malapuram. However, after 2013 the production level was same.
+
+```{r, echo=TRUE, warning=FALSE, message=FALSE }
+print(ggplot(K_D_C, aes(reorder(District_Name,-Area), Area))+geom_bar(stat = "identity", fill = "blue")+theme(axis.text.x = element_text(angle = 90))+ xlab("District")+ylab("Area")+
+  labs(title = "Area under production")+facet_grid(~Crop_Year))
+
+
+```
+
+####On Further analysis we can see that the area under production has increased for Malapuram. Hence the coconut production had increased in Malapuram from 2008.
+
+
+##Kerala - crops other than coconut and not in whole year
+
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+K_O <- subset(file, State_Name == "Kerala" & Crop != "Coconut " & Season != "Whole Year ")
+add <- setNames(aggregate(K_O$Production, by =list(K_O$District_Name), FUN =sum, na.rm = TRUE),c("District_Name", "Production"))
+
+ggplot(add, aes(x = reorder(District_Name,-Production), y =Production))+
+  geom_bar(stat = "identity", fill = "blue")+
+  theme(axis.text.x = element_text(angle = 90))+ xlab("District")+ylab("Production")+
+  labs(title = "Crops (other than Coconut) Production in Kerala (Other than Whole Year)")
+
+```
+
+####Kollam, Palakkad, Thiruvananthapuram, Idukki, Malappuram are the highest producers of crops other than coconut.
+
+
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+
+K_D_O <- subset(file, District_Name %in% c("ALAPPUZHA", "PALAKKAD","THRISSUR" , "ERNAKULAM", "KOTTAYAM"))
+K_D_O_C <- subset(K_D_O, Crop != "Coconut "& Season != "Whole Year ")
+add_1 <- K_D_O_C%>%
+          group_by(Crop, Crop_Year)%>%
+          filter(!is.na(Production))%>%
+          mutate(perc = Production/sum(Production))
+
+ggplot(add_1, aes(District_Name, perc, fill = Crop))+
+  geom_bar(stat = "identity", position = "dodge")+
+  theme(axis.text.x = element_text(angle = 90))+ xlab("District")+ylab("Production")+
+  labs(title = "Other crops Production in top 5 districst in Kerala(Other than Whole Year)")+
+  facet_grid(~Crop_Year)
+```
+
+####We have selected 5 major districts and now we are analysing the production of other crops in those districts. As per the graph, Rice is a major crop grown in these districts. 
+
+
+```{r, echo=TRUE, warning=FALSE, message=FALSE, fig.height=3}
+
+K_D_O_R <- subset(K_D_O_C, Crop =="Rice")
+
+ggplot(K_D_O_R, aes(reorder(District_Name,Production), Production))+
+  geom_bar(stat = "identity", position = "dodge", fill = "yellow")+
+  theme(axis.text.x = element_text(angle = 90))+ xlab("District")+ylab("Production")+
+  labs(title = "Rice Production in top 5 districst in Kerala")+
+  facet_grid(~Crop_Year)
+```
+
+####We will do an analysis on Rice. The production of rice had increased in 2005 and later dropped.
+
+
+```{r, echo=TRUE, warning=FALSE, message=FALSE, fig.height=3}
+
+ggplot(K_D_O_R, aes(reorder(District_Name,Area), Area, fill = Crop))+
+  geom_bar(stat = "identity", position = "dodge")+
+  theme(axis.text.x = element_text(angle = 90))+ xlab("District")+ylab("Area")+
+  labs(title = "Rice Production in top 5 districst in Kerala")+
+  facet_grid(~Crop_Year)
+
+```
+
+####The production had increased in 2005 as the area under production was high and later the area was reduced.
+
+#District wise analysis for Whole year for Kerala, other than coconut
+
+```{r, echo=TRUE, warning=FALSE, message= FALSE}
+K_W <- subset(file, State_Name == "Kerala" & Season == "Whole Year " & Crop != "Coconut ")
+add_2 <- K_W%>%
+          group_by(District_Name, Crop,Crop_Year)%>%
+          filter(!is.na(Production))%>%
+          mutate(perc = Production/sum(Production))
+
+
+ggplot(add_2, aes(reorder(District_Name,-perc), perc))+
+  geom_bar(stat = "identity", na.rm = TRUE, aes(y = Production/sum(Production)))+
+  theme(axis.text.x = element_text(angle = 90))+ xlab("District")+ylab("Production")+
+  labs(title = "Season - Whole Year in Kerala")+
+  scale_y_continuous(labels = scales::percent)
+```
+
+####THIRUVANANTHAPURAM, PALAKKAD,KOLLAM, IDUKKI, MALAPPURAM are the major districts were the production is higher.
+
+```{r, echo=TRUE, warning=FALSE, message= FALSE}
+
+K_D_W <- subset(file, District_Name %in% c("THIRUVANANTHAPURAM", "PALAKKAD","KOLLAM", "IDUKKI", "MALAPPURAM"))
+K_D_W <- subset(K_D_W, Crop != "Coconut "& Season == "Whole Year ")
+add_2 <- K_D_W%>%
+  group_by(District_Name, Crop, Crop_Year)%>%
+  filter(!is.na(Production))%>%
+  mutate(perc = Production/sum(Production))
+
+ggplot(add_2, aes(reorder(District_Name,Production), Production, fill = Crop))+
+  geom_bar(stat = "identity", position = "dodge")+
+  theme(axis.text.x = element_text(angle = 90))+ xlab("District")+ylab("Production")+
+  labs(title = "Other crops Production in top 5 districst in Kerala(Whole Year)")+
+  facet_grid(~Crop_Year)+coord_flip()
+
+```
+
+#### Tapioca and Sugarcane are the major crops produced other than coconut in Season - "Whole Year".
+
+
+#District wise analysis for Seasons other than Whole year for Kerala
+```{r, echo=TRUE, warning=FALSE, message= FALSE}
+K_W_O <- subset(file, State_Name == "Kerala" & Season != "Whole Year " & Crop != "Coconut ")
+add_3 <- K_W_O%>%
+          group_by(District_Name, Crop,Crop_Year)%>%
+          filter(!is.na(Production))%>%
+          mutate(perc = Production/sum(Production))
+
+
+ggplot(add_3, aes(reorder(District_Name,-Production), Production))+
+  geom_bar(stat = "identity", na.rm = TRUE, aes(y = Production/sum(Production)))+
+  theme(axis.text.x = element_text(angle = 90))+ xlab("District")+ylab("Production")+
+  labs(title = "Season - Whole Year in Kerala")+
+  scale_y_continuous(labels = scales::percent)
+```
+
+####Palakkad, Alappuzha, Thrissur, Kottayam, Ernakulam are the districts in kerala where the production is higher for Seasons other than Whole Year.
+
+```{r, echo=TRUE, warning=FALSE, message= FALSE}
+
+K_W_O_D <- subset(K_W_O, District_Name %in% c("PALAKKAD", "ALAPPUZHA", "THRISSUR", "KOTTAYAM", "ERNAKULAM")) 
+
+ggplot(K_W_O_D, aes(reorder(District_Name,Production), Production, fill = Crop))+
+  geom_bar(stat = "identity", position = "dodge")+
+  theme(axis.text.x = element_text(angle = 90))+ xlab("District")+ylab("Production")+
+  labs(title = "Crops(other than coconut) Production in top 5 districst in Kerala(other than Whole Year)")+
+  facet_grid(~Season)
+
+```
+
+####Rice is the major crop produced in Season other than Whole year.
